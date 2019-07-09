@@ -1,0 +1,102 @@
+---
+title: "Moderators of facial feedback"
+author: "Bohdan Punyk"
+date: "8 07 2019"
+output: html_document
+---
+
+## First, let's load the dataset
+
+```{r}
+
+setwd("D:/SWPS/IV semestr/Badanie z ołówkiem")
+library(readxl)
+rm(list = ls())
+badanie <- read_excel("D:/SWPS/IV semestr/Badanie z ołówkiem/Face_badanie_GE1.xlsx")
+#str(badanie)
+```
+
+## Now let's tidy the dataframe by deleting unnesessary columns
+
+```{r}
+Thisone <- badanie [,c(6,11)]
+names(Thisone)[names(Thisone) == "Oceń swój nastrój na podanej skali."] <- "mood"
+names(Thisone)[names(Thisone) == "Rodzaj grupy"] <- "grupa"
+str(Thisone)
+```
+
+## Step 2.Create 2 variables out of 4 original groups
+
+```{r}
+Thisone$sound <- ifelse(Thisone$grupa == "słucham + naciągam" | Thisone$grupa == "słucham", "słucham", "nie_słucham")
+Thisone$smile <- ifelse(Thisone$grupa == "słucham + naciągam" | Thisone$grupa == "naciągam", "Uśmiecham_się", "nie_uśmiecham_się")
+
+```
+
+## Step 3. *ANOVA*
+
+```{r}
+Thisone$grupa <- factor(Thisone$grupa)
+Thisone$sound <- factor(Thisone$sound)
+Thisone$smile <- factor(Thisone$smile)
+
+Thisone.inter.aov <- aov(formula = mood ~ sound * smile,
+                          data = Thisone)
+
+Thisone.aov <- aov(formula = mood ~ sound + smile,
+                          data = Thisone)
+
+# Step 2: Look at summary table
+summary(Thisone.inter.aov)
+
+plot(Thisone.inter.aov, 4)
+```
+
+## Explore the data
+
+```{r}
+
+means <- aggregate(mood ~  grupa, Thisone, mean)
+#View(means)
+
+
+library("ggpubr")
+
+ggline(Thisone, x = "smile", y = "mood", color = "sound",
+       add = c("mean", "dotplot"),
+       palette = c("#00AFBB", "#E7B800"))
+
+ggboxplot(Thisone, x = "grupa", y = "mood", 
+          color = "grupa", palette = c("#00AFBB", "#E7B800", "#FC4E07", "#18F043"),
+          order = c("słucham + naciągam", "słucham", "naciągam", "nic"),
+          ylab = "mood", xlab = "Grupa",
+          add = "mean")
+
+ggboxplot(Thisone, x = "sound", y = "mood", 
+          color = "sound", palette = c("#00AFBB", "#E7B800"),
+          order = c("nie_słucham", "słucham"),
+          ylab = "Nastrój", xlab = "Muzyka",
+          add = "dotplot")
+
+ggboxplot(Thisone, x = "smile", y = "mood", 
+          color = "smile", palette = c("#FC4E07", "#18F043"),
+          order = c("nie_uśmiecham_się", "Uśmiecham_się"),
+          ylab = "Nastrój", xlab = "Uśmiech",
+          add = "dotplot")
+
+#Post hoc sprawdzanie różnic między każdą z grup
+TukeyHSD(Thisone.aov)
+
+
+```
+
+## Leven's test
+
+```{r}
+
+library(car)
+#Test Levena zakłada, że rozkłąd nie jest homogeniczny
+leveneTest(mood ~ grupa, data = Thisone)
+
+
+```
